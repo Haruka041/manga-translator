@@ -31,7 +31,7 @@ export const configFields = [
   { key: 'stage_a_timeout', label: 'Stage A Timeout (s)', type: 'number' },
   { key: 'stage_b_timeout', label: 'Stage B Timeout (s)', type: 'number' },
   { key: 'retries', label: 'Retries', type: 'number' },
-  { key: 'stage_a_concurrency', label: 'Stage A Concurrency', type: 'number', hint: '需重启 worker 生效' },
-  { key: 'stage_b_concurrency', label: 'Stage B Concurrency', type: 'number', hint: '需重启 worker 生效' },
+  { key: 'stage_a_concurrency', label: 'Stage A Concurrency', type: 'number', hint: '需重启服务生效' },
+  { key: 'stage_b_concurrency', label: 'Stage B Concurrency', type: 'number', hint: '需重启服务生效' },
   { key: 'keep_all_artifacts', label: 'Keep All Artifacts', type: 'checkbox' }
 ]

@@ -8,6 +8,7 @@ import ImportPanel from './components/ImportPanel.jsx'
 import PagesPanel from './components/PagesPanel.jsx'
 import ProgressPanel from './components/ProgressPanel.jsx'
 import PageEditor from './components/PageEditor.jsx'
+import SetupWizard from './components/SetupWizard.jsx'
 
 export default function App() {
   const [globalSettings, setGlobalSettings] = useState(null)
@@ -257,9 +258,21 @@ export default function App() {
 
   const jobLocked =
     selectedJob?.locked || selectedJob?.status === 'running' || selectedJob?.status === 'done'
+  const needsSetup =
+    globalSettings &&
+    (!globalSettings.api_key_set || !globalDraft?.openai_base_url)
 
   return (
     <div className="layout">
+      <SetupWizard
+        open={needsSetup}
+        globalDraft={globalDraft}
+        setGlobalDraft={setGlobalDraft}
+        globalKey={globalKey}
+        setGlobalKey={setGlobalKey}
+        apiKeySet={globalSettings?.api_key_set}
+        onSave={saveGlobal}
+      />
       <Sidebar
         jobs={jobs}
         selectedJobId={selectedJob?.id}

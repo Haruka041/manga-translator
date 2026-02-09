@@ -11,10 +11,9 @@ class Settings(BaseSettings):
     data_dir: str = "./data"
 
     # DB
-    database_url: str = "postgresql+psycopg2://mangat:mangat@db:5432/mangat"
+    database_url: str = "sqlite:///./data/mangat.db"
 
-    # Redis / Queue
-    redis_url: str = "redis://redis:6379/0"
+    # Queue
     queue_stage_a: str = "stage-a"
     queue_stage_b: str = "stage-b"
     queue_qa: str = "qa"

@@ -259,3 +259,58 @@ img {
 .item-row.active {
   background: #e0f2fe;
 }
+
+.wizard-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.wizard {
+  width: min(720px, 92vw);
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+
+.wizard-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.wizard-steps {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.wizard-step {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  font-size: 12px;
+}
+
+.wizard-step.active {
+  background: #1f6feb;
+  color: #fff;
+}
+
+.wizard-body {
+  display: grid;
+  gap: 12px;
+}
+
+.wizard-actions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
