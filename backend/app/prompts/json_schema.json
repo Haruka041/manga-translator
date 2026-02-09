@@ -1,0 +1,69 @@
+{
+  "name": "manga_json_v2",
+  "schema": {
+    "type": "object",
+    "required": ["page_id", "reading_direction", "items"],
+    "properties": {
+      "page_id": {"type": "string"},
+      "reading_direction": {"type": "string", "enum": ["rtl", "ltr", "unknown"]},
+      "language_from": {"type": "string"},
+      "language_to": {"type": "string"},
+      "image_meta": {
+        "type": "object",
+        "properties": {
+          "width": {"type": "integer"},
+          "height": {"type": "integer"},
+          "checksum": {"type": "string"}
+        }
+      },
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "panel",
+            "order",
+            "type",
+            "action",
+            "orientation",
+            "bbox_norm",
+            "jp_text",
+            "cn_text",
+            "confidence",
+            "needs_user_confirm"
+          ],
+          "properties": {
+            "id": {"type": "string"},
+            "panel": {"type": "string"},
+            "order": {"type": "integer"},
+            "type": {
+              "type": "string",
+              "enum": ["dialogue", "narration", "sfx", "title", "note", "sign", "credit", "logo", "watermark"]
+            },
+            "action": {"type": "string", "enum": ["replace", "remove"]},
+            "orientation": {"type": "string", "enum": ["vertical", "horizontal", "unknown"]},
+            "is_small_text": {"type": "boolean"},
+            "location": {"type": "string"},
+            "anchor": {"type": "string"},
+            "bbox_norm": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {"type": "number", "minimum": 0, "maximum": 1}
+            },
+            "jp_text": {"type": ["string", "null"]},
+            "cn_text": {"type": ["string", "null"]},
+            "tone": {"type": "string"},
+            "emotion_intensity": {"type": "integer", "minimum": 1, "maximum": 5},
+            "linebreak_suggestion": {"type": ["string", "null"]},
+            "linebreak_lock": {"type": "boolean"},
+            "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+            "needs_user_confirm": {"type": "boolean"},
+            "notes": {"type": "string"}
+          }
+        }
+      }
+    }
+  }
+}
