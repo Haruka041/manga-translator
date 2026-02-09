@@ -4,6 +4,27 @@
 
 ## 快速启动
 
+### 方式 A：直接拉取 GHCR 镜像（推荐开源用户）
+
+1. 复制环境变量模板：
+
+```bash
+cp .env.example .env
+```
+
+2. 填写 `.env` 中的 OpenAI 兼容中转 API 参数与 `MASTER_KEY`。  
+3. 启动（使用 GHCR 镜像）：
+
+```bash
+docker compose -f docker-compose.ghcr.yml up -d
+```
+
+> 如需指定版本镜像，修改 `.env` 中的 `MANGAT_IMAGE`。
+
+---
+
+### 方式 B：本地构建镜像
+
 1. 复制环境变量模板：
 
 ```bash
@@ -45,7 +66,10 @@ docker compose up --build
 - 打 tag（如 `v0.1.0`）后自动发布 Release
 - 产物：
   - GHCR Docker 镜像：`ghcr.io/<owner>/<repo>:v0.1.0`
-  - Release 附件：`mangat-v0.1.0.tar.gz`（包含 `docker-compose.yml/.env.example/README.md`）
+  - Release 附件：`mangat-v0.1.0.tar.gz`（包含 `docker-compose.yml/docker-compose.ghcr.yml/.env.example/README.md`）
+
+## GHCR 镜像可见性
+开源仓库默认 GHCR 可能是私有的，请在 GitHub Packages 中将镜像设为 Public。
 
 ## 目录结构
 

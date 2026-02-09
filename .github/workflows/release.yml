@@ -61,6 +61,7 @@ jobs:
         run: |
           mkdir -p dist
           cp docker-compose.yml dist/
+          cp docker-compose.ghcr.yml dist/
           cp .env.example dist/
           cp README.md dist/
           tar -czf dist/mangat-${{ github.ref_name }}.tar.gz -C dist .

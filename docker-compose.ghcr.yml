@@ -1,0 +1,73 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: mangat
+      POSTGRES_PASSWORD: mangat
+      POSTGRES_DB: mangat
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  api:
+    image: ${MANGAT_IMAGE:-ghcr.io/haruka041/manga-translator:main}
+    environment:
+      DATABASE_URL: postgresql+psycopg2://mangat:mangat@db:5432/mangat
+      REDIS_URL: redis://redis:6379/0
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      MASTER_KEY: ${MASTER_KEY}
+      MODEL_A: ${MODEL_A:-gemini-3-pro-preview}
+      MODEL_B: ${MODEL_B:-gemini-3-pro-image-preview}
+      MODEL_A_PROTOCOL: ${MODEL_A_PROTOCOL:-chat_completions}
+      MODEL_A_USE_SCHEMA: ${MODEL_A_USE_SCHEMA:-true}
+      MODEL_B_PROTOCOL: ${MODEL_B_PROTOCOL:-images_edits}
+      MODEL_B_ENDPOINT: ${MODEL_B_ENDPOINT:-/v1/images/edits}
+      QA_MODE: ${QA_MODE:-auto}
+      READING_DIRECTION: ${READING_DIRECTION:-auto}
+      OUTPUT_FORMAT: ${OUTPUT_FORMAT:-cbz}
+      DATA_DIR: /data
+    volumes:
+      - ./data:/data
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+
+  worker:
+    image: ${MANGAT_IMAGE:-ghcr.io/haruka041/manga-translator:main}
+    command: ["rq", "worker", "stage-a", "stage-b", "qa"]
+    environment:
+      DATABASE_URL: postgresql+psycopg2://mangat:mangat@db:5432/mangat
+      REDIS_URL: redis://redis:6379/0
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      MASTER_KEY: ${MASTER_KEY}
+      MODEL_A: ${MODEL_A:-gemini-3-pro-preview}
+      MODEL_B: ${MODEL_B:-gemini-3-pro-image-preview}
+      MODEL_A_PROTOCOL: ${MODEL_A_PROTOCOL:-chat_completions}
+      MODEL_A_USE_SCHEMA: ${MODEL_A_USE_SCHEMA:-true}
+      MODEL_B_PROTOCOL: ${MODEL_B_PROTOCOL:-images_edits}
+      MODEL_B_ENDPOINT: ${MODEL_B_ENDPOINT:-/v1/images/edits}
+      QA_MODE: ${QA_MODE:-auto}
+      READING_DIRECTION: ${READING_DIRECTION:-auto}
+      OUTPUT_FORMAT: ${OUTPUT_FORMAT:-cbz}
+      DATA_DIR: /data
+    volumes:
+      - ./data:/data
+    depends_on:
+      - api
+      - redis
+      - db
+
+volumes:
+  db_data:
