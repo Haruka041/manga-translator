@@ -138,14 +138,124 @@ img {
   margin-top: 4px;
 }
 
+.divider {
+  height: 1px;
+  background: #e5e7eb;
+  margin: 12px 0;
+}
+
 .cover {
   margin-top: 6px;
   max-height: 120px;
   border-radius: 6px;
 }
 
-.divider {
-  height: 1px;
+.progress-bar {
+  width: 100%;
+  height: 10px;
   background: #e5e7eb;
-  margin: 12px 0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #22c55e;
+}
+
+.progress-meta {
+  margin-top: 8px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+.bbox-container {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+.bbox-image {
+  width: 100%;
+  display: block;
+}
+
+.bbox-overlay {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.bbox-stage {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #e1e4e8;
+}
+
+.bbox-transform {
+  position: relative;
+  transform-origin: top left;
+}
+
+.bbox-toolbar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.bbox {
+  position: absolute;
+  border: 2px solid #f97316;
+  box-sizing: border-box;
+  background: rgba(249, 115, 22, 0.08);
+}
+
+.bbox.active {
+  border-color: #22c55e;
+}
+
+.bbox-label {
+  position: absolute;
+  top: -16px;
+  left: 0;
+  background: #111;
+  color: #fff;
+  font-size: 10px;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border: 2px solid #111;
+}
+
+.handle.nw { left: -6px; top: -6px; cursor: nwse-resize; }
+.handle.ne { right: -6px; top: -6px; cursor: nesw-resize; }
+.handle.sw { left: -6px; bottom: -6px; cursor: nesw-resize; }
+.handle.se { right: -6px; bottom: -6px; cursor: nwse-resize; }
+
+.item-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.item-row {
+  padding: 6px;
+  border: 1px solid #e1e4e8;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.item-row.active {
+  background: #e0f2fe;
 }

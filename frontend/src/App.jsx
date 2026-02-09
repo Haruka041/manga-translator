@@ -1,53 +1,13 @@
 import { useEffect, useState } from 'react'
-
-const apiBase = ''
-
-async function api(path, options = {}) {
-  const res = await fetch(`${apiBase}${path}`, options)
-  if (!res.ok) {
-    const text = await res.text()
-    throw new Error(text)
-  }
-  return res
-}
-
-const defaultConfig = {
-  openai_base_url: '',
-  model_a: 'gemini-3-pro-preview',
-  model_b: 'gemini-3-pro-image-preview',
-  model_a_protocol: 'chat_completions',
-  model_b_protocol: 'images_edits',
-  model_b_endpoint: '/v1/images/edits',
-  model_a_use_schema: true,
-  qa_mode: 'auto',
-  reading_direction: 'auto',
-  output_format: 'cbz',
-  stage_a_timeout: 120,
-  stage_b_timeout: 300,
-  retries: 1,
-  stage_a_concurrency: 6,
-  stage_b_concurrency: 4,
-  keep_all_artifacts: true
-}
-
-const configFields = [
-  { key: 'openai_base_url', label: 'OpenAI Base URL' },
-  { key: 'model_a', label: 'Model A' },
-  { key: 'model_b', label: 'Model B' },
-  { key: 'model_a_protocol', label: 'Model A Protocol', type: 'select', options: ['chat_completions', 'responses'] },
-  { key: 'model_b_protocol', label: 'Model B Protocol', type: 'select', options: ['images_edits', 'responses'] },
-  { key: 'model_b_endpoint', label: 'Model B Endpoint' },
-  { key: 'model_a_use_schema', label: 'Use JSON Schema', type: 'checkbox' },
-  { key: 'qa_mode', label: 'QA Mode', type: 'select', options: ['auto', 'strict'] },
-  { key: 'reading_direction', label: 'Reading Direction', type: 'select', options: ['auto', 'rtl', 'ltr'] },
-  { key: 'output_format', label: 'Output Format', type: 'select', options: ['cbz', 'zip'] },
-  { key: 'stage_a_timeout', label: 'Stage A Timeout (s)', type: 'number' },
-  { key: 'stage_b_timeout', label: 'Stage B Timeout (s)', type: 'number' },
-  { key: 'retries', label: 'Retries', type: 'number' },
-  { key: 'stage_a_concurrency', label: 'Stage A Concurrency', type: 'number', hint: '需重启 worker 生效' },
-  { key: 'stage_b_concurrency', label: 'Stage B Concurrency', type: 'number', hint: '需重启 worker 生效' },
-  { key: 'keep_all_artifacts', label: 'Keep All Artifacts', type: 'checkbox' }
-]
+import { api } from './apiClient.js'
+import { defaultConfig } from './configSchema.js'
+import Sidebar from './components/Sidebar.jsx'
+import GlobalSettingsPanel from './components/GlobalSettingsPanel.jsx'
+import ProjectSettingsPanel from './components/ProjectSettingsPanel.jsx'
+import ImportPanel from './components/ImportPanel.jsx'
+import PagesPanel from './components/PagesPanel.jsx'
+import ProgressPanel from './components/ProgressPanel.jsx'
+import PageEditor from './components/PageEditor.jsx'
 
 export default function App() {
   const [globalSettings, setGlobalSettings] = useState(null)
@@ -56,10 +16,11 @@ export default function App() {
 
   const [jobs, setJobs] = useState([])
   const [selectedJob, setSelectedJob] = useState(null)
-  const [jobDraft, setJobDraft] = useState(null)
+  const [jobDraft, setJobDraft] = useState({ title: '', notes: '', tagsText: '', priority: 0 })
 
   const [pages, setPages] = useState([])
   const [selectedPage, setSelectedPage] = useState(null)
+  const [pageJson, setPageJson] = useState(null)
   const [jsonText, setJsonText] = useState('')
   const [log, setLog] = useState('')
 
@@ -101,21 +62,16 @@ export default function App() {
     }
   }
 
-  useEffect(() => {
-    loadGlobal()
-    loadJobs()
-  }, [])
-
   const createJob = async () => {
     if (!globalDraft) return
     try {
       const payload = {
-        title: jobDraft?.title || 'Untitled',
-        notes: jobDraft?.notes || '',
-        tags: jobDraft?.tags || [],
-        priority: Number(jobDraft?.priority || 0),
-        config: jobDraft?.config || globalDraft,
-        api_key: jobDraft?.api_key || null
+        title: jobDraft.title || 'Untitled',
+        notes: jobDraft.notes || '',
+        tags: (jobDraft.tagsText || '').split(',').map((s) => s.trim()).filter(Boolean),
+        priority: Number(jobDraft.priority || 0),
+        config: globalDraft,
+        api_key: null
       }
       const res = await api('/api/jobs', {
         method: 'POST',
@@ -124,7 +80,7 @@ export default function App() {
       })
       const data = await res.json()
       await loadJobs()
-      setSelectedJob(data)
+      setSelectedJob({ ...data, api_key: '' })
       setLog(`Project created: ${data.id}`)
     } catch (e) {
       setLog(String(e))
@@ -148,9 +104,29 @@ export default function App() {
         body: JSON.stringify(payload)
       })
       const data = await res.json()
-      setSelectedJob(data)
+      setSelectedJob({ ...data, api_key: '' })
       await loadJobs()
       setLog('Project saved')
+    } catch (e) {
+      setLog(String(e))
+    }
+  }
+
+  const selectJob = async (job) => {
+    setSelectedJob({ ...job, api_key: '' })
+    setSelectedPage(null)
+    setPageJson(null)
+    setJsonText('')
+    await refreshPages(job.id)
+  }
+
+  const refreshPages = async (jobId) => {
+    const id = jobId || selectedJob?.id
+    if (!id) return
+    try {
+      const res = await api(`/api/jobs/${id}/pages`)
+      const data = await res.json()
+      setPages(data)
     } catch (e) {
       setLog(String(e))
     }
@@ -182,6 +158,19 @@ export default function App() {
     }
   }
 
+  const uploadCover = async (file) => {
+    if (!selectedJob) return
+    const form = new FormData()
+    form.append('file', file)
+    try {
+      await api(`/api/jobs/${selectedJob.id}/cover`, { method: 'POST', body: form })
+      setLog('Cover uploaded')
+      await loadJobs()
+    } catch (e) {
+      setLog(String(e))
+    }
+  }
+
   const runJob = async () => {
     if (!selectedJob) return
     try {
@@ -193,37 +182,42 @@ export default function App() {
     }
   }
 
-  const refreshPages = async () => {
+  const exportJob = async () => {
     if (!selectedJob) return
-    try {
-      const res = await api(`/api/jobs/${selectedJob.id}/pages`)
-      const data = await res.json()
-      setPages(data)
-    } catch (e) {
-      setLog(String(e))
-    }
+    window.open(`/api/jobs/${selectedJob.id}/export`, '_blank')
   }
 
   const loadJson = async (page) => {
     try {
       const res = await api(`/api/pages/${page.id}/json`)
       const data = await res.json()
-      setJsonText(JSON.stringify(data, null, 2))
       setSelectedPage(page)
+      setPageJson(data)
+      setJsonText(JSON.stringify(data, null, 2))
     } catch (e) {
       setLog(String(e))
     }
   }
 
-  const saveJson = async () => {
-    if (!selectedPage) return
+  const applyJson = () => {
     try {
       const parsed = JSON.parse(jsonText)
+      setPageJson(parsed)
+      setLog('JSON applied')
+    } catch (e) {
+      setLog(`Invalid JSON: ${e.message}`)
+    }
+  }
+
+  const saveJson = async () => {
+    if (!selectedPage || !pageJson) return
+    try {
       await api(`/api/pages/${selectedPage.id}/json`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: parsed })
+        body: JSON.stringify({ content: pageJson })
       })
+      setJsonText(JSON.stringify(pageJson, null, 2))
       setLog('JSON saved')
     } catch (e) {
       setLog(String(e))
@@ -240,220 +234,91 @@ export default function App() {
     }
   }
 
-  const exportJob = async () => {
-    if (!selectedJob) return
-    window.open(`/api/jobs/${selectedJob.id}/export`, '_blank')
+  const retryFailedA = async () => {
+    const failed = pages.filter((p) => p.status === 'failed')
+    await Promise.all(
+      failed.map((p) => api(`/api/pages/${p.id}/rerun?stage=A`, { method: 'POST' }))
+    )
+    setLog('Retry Stage A for failed pages')
   }
 
-  const uploadCover = async (file) => {
-    if (!selectedJob) return
-    const form = new FormData()
-    form.append('file', file)
-    try {
-      await api(`/api/jobs/${selectedJob.id}/cover`, { method: 'POST', body: form })
-      setLog('Cover uploaded')
-      await loadJobs()
-    } catch (e) {
-      setLog(String(e))
-    }
+  const retryFailedB = async () => {
+    const targets = pages.filter((p) => p.status === 'failed' || p.status === 'blocked')
+    await Promise.all(
+      targets.map((p) => api(`/api/pages/${p.id}/rerun?stage=B`, { method: 'POST' }))
+    )
+    setLog('Retry Stage B for failed/blocked pages')
   }
 
-  const selectJob = async (job) => {
-    setSelectedJob({ ...job, api_key: '' })
-    setSelectedPage(null)
-    setPages([])
-    try {
-      const res = await api(`/api/jobs/${job.id}/pages`)
-      const data = await res.json()
-      setPages(data)
-    } catch (e) {
-      setLog(String(e))
-    }
-  }
+  useEffect(() => {
+    loadGlobal()
+    loadJobs()
+  }, [])
 
-  const jobLocked = selectedJob?.locked || selectedJob?.status === 'running' || selectedJob?.status === 'done'
+  const jobLocked =
+    selectedJob?.locked || selectedJob?.status === 'running' || selectedJob?.status === 'done'
 
   return (
     <div className="layout">
-      <aside className="sidebar">
-        <div className="brand">Mangat</div>
-        <div className="section">
-          <button onClick={loadJobs}>Refresh</button>
-        </div>
-
-        <div className="section">
-          <h3>Create Project</h3>
-          <input placeholder="Title" onChange={(e) => setJobDraft({ ...(jobDraft || {}), title: e.target.value })} />
-          <textarea placeholder="Notes" rows="3" onChange={(e) => setJobDraft({ ...(jobDraft || {}), notes: e.target.value })} />
-          <input placeholder="Tags (comma)" onChange={(e) => setJobDraft({ ...(jobDraft || {}), tags: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })} />
-          <input type="number" placeholder="Priority" onChange={(e) => setJobDraft({ ...(jobDraft || {}), priority: e.target.value })} />
-          <button onClick={createJob}>Create</button>
-        </div>
-
-        <div className="section">
-          <h3>Projects</h3>
-          <div className="list">
-            {jobs.map((j) => (
-              <div key={j.id} className={`item ${selectedJob?.id === j.id ? 'active' : ''}`} onClick={() => selectJob(j)}>
-                <div className="item-title">{j.title || 'Untitled'}</div>
-                <div className="item-sub">{j.status} · {j.done_pages}/{j.total_pages}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </aside>
+      <Sidebar
+        jobs={jobs}
+        selectedJobId={selectedJob?.id}
+        jobDraft={jobDraft}
+        setJobDraft={setJobDraft}
+        onCreateJob={createJob}
+        onRefreshJobs={loadJobs}
+        onSelectJob={selectJob}
+      />
 
       <main className="main">
-        <section className="panel">
-          <h2>Global Settings</h2>
-          {globalDraft && (
-            <div className="grid">
-              {configFields.map((f) => (
-                <div key={f.key} className="field">
-                  <label>{f.label}</label>
-                  {f.type === 'select' ? (
-                    <select value={globalDraft[f.key]} onChange={(e) => setGlobalDraft({ ...globalDraft, [f.key]: e.target.value })}>
-                      {f.options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-                    </select>
-                  ) : f.type === 'checkbox' ? (
-                    <input type="checkbox" checked={!!globalDraft[f.key]} onChange={(e) => setGlobalDraft({ ...globalDraft, [f.key]: e.target.checked })} />
-                  ) : (
-                    <input type={f.type || 'text'} value={globalDraft[f.key]} onChange={(e) => setGlobalDraft({ ...globalDraft, [f.key]: f.type === 'number' ? Number(e.target.value) : e.target.value })} />
-                  )}
-                  {f.hint && <div className="hint">{f.hint}</div>}
-                </div>
-              ))}
-              <div className="field">
-                <label>API Key (encrypted)</label>
-                <input type="password" placeholder={globalSettings?.api_key_set ? `****${globalSettings.api_key_last4}` : 'Not set'} value={globalKey} onChange={(e) => setGlobalKey(e.target.value)} />
-              </div>
-            </div>
-          )}
-          <button onClick={saveGlobal}>Save Global</button>
-        </section>
+        <GlobalSettingsPanel
+          globalDraft={globalDraft}
+          globalSettings={globalSettings}
+          globalKey={globalKey}
+          setGlobalKey={setGlobalKey}
+          setGlobalDraft={setGlobalDraft}
+          onSave={saveGlobal}
+        />
+
+        <ProjectSettingsPanel
+          job={selectedJob}
+          setJob={setSelectedJob}
+          jobLocked={jobLocked}
+          onSave={updateJob}
+          onRun={runJob}
+          onRefreshPages={() => refreshPages()}
+          onExport={exportJob}
+          onUploadCover={uploadCover}
+        />
 
         {selectedJob && (
-          <section className="panel">
-            <h2>Project Settings</h2>
-            {jobLocked && <div className="hint">项目已锁定（运行后不可修改配置）</div>}
-            <div className="grid">
-              <div className="field">
-                <label>Title</label>
-                <input value={selectedJob.title} onChange={(e) => setSelectedJob({ ...selectedJob, title: e.target.value })} disabled={jobLocked} />
-              </div>
-              <div className="field">
-                <label>Notes</label>
-                <textarea rows="3" value={selectedJob.notes} onChange={(e) => setSelectedJob({ ...selectedJob, notes: e.target.value })} disabled={jobLocked} />
-              </div>
-              <div className="field">
-                <label>Tags</label>
-                <input value={selectedJob.tags?.join(', ') || ''} onChange={(e) => setSelectedJob({ ...selectedJob, tags: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })} disabled={jobLocked} />
-              </div>
-              <div className="field">
-                <label>Priority</label>
-                <input type="number" value={selectedJob.priority || 0} onChange={(e) => setSelectedJob({ ...selectedJob, priority: e.target.value })} disabled={jobLocked} />
-              </div>
-              <div className="field">
-                <label>Cover</label>
-                <input type="file" onChange={(e) => e.target.files[0] && uploadCover(e.target.files[0])} disabled={jobLocked} />
-                {selectedJob.cover_path && (
-                  <div className="hint">
-                    <img className="cover" src={`/api/jobs/${selectedJob.id}/cover`} />
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="divider" />
-
-            <h3>Project Config (override)</h3>
-            <div className="grid">
-              {configFields.map((f) => (
-                <div key={f.key} className="field">
-                  <label>{f.label}</label>
-                  {f.type === 'select' ? (
-                    <select value={selectedJob.config?.[f.key] ?? ''} onChange={(e) => setSelectedJob({ ...selectedJob, config: { ...selectedJob.config, [f.key]: e.target.value } })} disabled={jobLocked}>
-                      {f.options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-                    </select>
-                  ) : f.type === 'checkbox' ? (
-                    <input type="checkbox" checked={!!selectedJob.config?.[f.key]} onChange={(e) => setSelectedJob({ ...selectedJob, config: { ...selectedJob.config, [f.key]: e.target.checked } })} disabled={jobLocked} />
-                  ) : (
-                    <input type={f.type || 'text'} value={selectedJob.config?.[f.key] ?? ''} onChange={(e) => setSelectedJob({ ...selectedJob, config: { ...selectedJob.config, [f.key]: f.type === 'number' ? Number(e.target.value) : e.target.value } })} disabled={jobLocked} />
-                  )}
-                  {f.hint && <div className="hint">{f.hint}</div>}
-                </div>
-              ))}
-              <div className="field">
-                <label>API Key Override</label>
-                <input type="password" placeholder={selectedJob.api_key_last4 ? `****${selectedJob.api_key_last4}` : 'Not set'} value={selectedJob.api_key || ''} onChange={(e) => setSelectedJob({ ...selectedJob, api_key: e.target.value })} disabled={jobLocked} />
-              </div>
-            </div>
-
-            <div className="actions">
-              <button onClick={updateJob} disabled={jobLocked}>Save Project</button>
-              <button onClick={runJob}>Run</button>
-              <button onClick={refreshPages}>Refresh Pages</button>
-              <button onClick={exportJob}>Export CBZ</button>
-            </div>
-          </section>
+          <ImportPanel
+            disabled={jobLocked}
+            onImportArchive={importArchive}
+            onUploadImages={uploadImages}
+          />
         )}
 
         {selectedJob && (
-          <section className="panel">
-            <h2>Import</h2>
-            <div className="grid">
-              <div className="field">
-                <label>CBZ/ZIP/PDF</label>
-                <input type="file" onChange={(e) => e.target.files[0] && importArchive(e.target.files[0])} />
-              </div>
-              <div className="field">
-                <label>Images</label>
-                <input type="file" multiple onChange={(e) => uploadImages(e.target.files)} />
-              </div>
-            </div>
-          </section>
+          <ProgressPanel
+            pages={pages}
+            onRetryA={retryFailedA}
+            onRetryB={retryFailedB}
+          />
         )}
 
-        {selectedJob && (
-          <section className="panel">
-            <h2>Pages</h2>
-            <div className="pages">
-              {pages.map((p) => (
-                <div key={p.id} className="page" onClick={() => loadJson(p)}>
-                  <div>#{p.page_index}</div>
-                  <div>{p.status}</div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
+        {selectedJob && <PagesPanel pages={pages} onSelectPage={loadJson} />}
 
-        {selectedPage && (
-          <section className="panel">
-            <h2>Page Viewer</h2>
-            <div className="grid">
-              <div>
-                <h3>Original</h3>
-                <img src={`/api/pages/${selectedPage.id}/image?variant=original`} />
-              </div>
-              <div>
-                <h3>Output</h3>
-                <img src={`/api/pages/${selectedPage.id}/image?variant=output`} />
-              </div>
-            </div>
-          </section>
-        )}
-
-        {selectedPage && (
-          <section className="panel">
-            <h2>JSON Editor</h2>
-            <textarea value={jsonText} onChange={(e) => setJsonText(e.target.value)} rows="18" />
-            <div className="actions">
-              <button onClick={saveJson}>Save JSON</button>
-              <button onClick={rerunB}>Rerun Stage B</button>
-            </div>
-          </section>
-        )}
+        <PageEditor
+          page={selectedPage}
+          pageJson={pageJson}
+          setPageJson={setPageJson}
+          jsonText={jsonText}
+          setJsonText={setJsonText}
+          onSaveJson={saveJson}
+          onApplyJson={applyJson}
+          onRerunB={rerunB}
+        />
 
         <div className="log">{log}</div>
       </main>
